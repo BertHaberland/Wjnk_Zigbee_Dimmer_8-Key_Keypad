@@ -50,6 +50,10 @@ action:
                 data:
                   brightness: "{{ trigger.to_state.attributes.brightness }}"
                   transition: 0
+              - delay: milliseconds: 300
+              - service: homeassistant.update_entity
+                target:
+                  entity_id: "{{ input_target_light }}"
           - conditions:
             - condition: template
               value_template: "{{ (input_target_light | string).startswith('switch.') }}"
