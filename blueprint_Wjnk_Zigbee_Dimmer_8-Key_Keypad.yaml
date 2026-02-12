@@ -18,88 +18,68 @@ blueprint:
             - switch
 
 trigger:
-  - id: keypad_on
-    platform: state
+  - platform: state
     entity_id: !input keypad_light
     to: "on"
-
-  - id: keypad_off
-    platform: state
+  - platform: state
     entity_id: !input keypad_light
     to: "off"
-
-  - id: keypad_dim
-    platform: state
+  - platform: state
     entity_id: !input keypad_light
     attribute: brightness
-
+    
 variables:
   input_target_light: !input target_light
 
 action:
   - choose:
-      # --- OFF ---
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.id == 'keypad_off' }}"
-        sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ (input_target_light | string).startswith('light.') }}"
-                sequence:
-                  - service: light.turn_off
-                    target:
-                      entity_id: "{{ input_target_light }}"
-              - conditions:
-                  - condition: template
-                    value_template: "{{ (input_target_light | string).startswith('switch.') }}"
-                sequence:
-                  - service: switch.turn_off
-                    target:
-                      entity_id: "{{ input_target_light }}"
+    - conditions:
+      - condition: template
+        value_template: "{{ trigger.to_state.state == 'on' }}"
+      sequence:
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: "{{ (input_target_light | string).startswith('light.') }}"
+            sequence:
+              - delay:
+                  milliseconds: 200
+              - service: light.turn_on
+                target:
+                  entity_id: "{{ input_target_light }}"
+                data:
+                  brightness: "{{ trigger.to_state.attributes.brightness }}"
+                  transition: 0
+              - delay: "00:00:00.300"
+              - service: homeassistant.update_entity
+                target:
+                  entity_id: "{{ input_target_light }}"
+          - conditions:
+            - condition: template
+              value_template: "{{ (input_target_light | string).startswith('switch.') }}"
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: "{{ input_target_light }}"
 
-      # --- ON ---
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.id == 'keypad_on' }}"
-        sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ (input_target_light | string).startswith('light.') }}"
-                sequence:
-                  # optional: keep a small delay only for the ON transition
-                  - delay:
-                      milliseconds: 200
-                  - service: light.turn_on
-                    target:
-                      entity_id: "{{ input_target_light }}"
-                    data:
-                      transition: 0
-                      brightness: "{{ trigger.to_state.attributes.brightness | int(0) }}"
-              - conditions:
-                  - condition: template
-                    value_template: "{{ (input_target_light | string).startswith('switch.') }}"
-                sequence:
-                  - service: switch.turn_on
-                    target:
-                      entity_id: "{{ input_target_light }}"
+    - conditions:
+      - condition: template
+        value_template: "{{ trigger.to_state.state == 'off' }}"
+      sequence:
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: "{{ (input_target_light | string).startswith('light.') }}"
+            sequence:
+              - service: light.turn_off
+                target:
+                  entity_id: "{{ input_target_light }}"
+          - conditions:
+            - condition: template
+              value_template: "{{ (input_target_light | string).startswith('switch.') }}"
+            sequence:
+              - service: switch.turn_off
+                target:
+                  entity_id: "{{ input_target_light }}"
 
-      # --- DIM (brightness attribute only) ---
-      - conditions:
-          - condition: template
-            value_template: "{{ trigger.id == 'keypad_dim' }}"
-        sequence:
-          # only makes sense for lights
-          - condition: template
-            value_template: "{{ (input_target_light | string).startswith('light.') }}"
-          - service: light.turn_on
-            target:
-              entity_id: "{{ input_target_light }}"
-            data:
-              transition: 0
-              brightness: "{{ trigger.to_state.attributes.brightness | int(0) }}"
-
-mode: queued
-max: 20
+mode: restart
