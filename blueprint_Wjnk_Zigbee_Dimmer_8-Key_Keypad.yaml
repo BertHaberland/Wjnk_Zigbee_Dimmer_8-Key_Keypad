@@ -101,4 +101,5 @@ action:
               transition: 0
               brightness: "{{ trigger.to_state.attributes.brightness | int(0) }}"
 
-mode: restart
+mode: queued
+max: 20
